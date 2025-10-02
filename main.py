@@ -1,113 +1,104 @@
 import pygame
 import math
-from random import randint
 pygame.init()
 
-WIDTH, HEIGHT = 1500, 800
+WIDTH, HEIGHT = 800, 800
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Earth-Moon Simulation")
 
-pygame.display.set_caption("Planet Simulation")
+WHITE = (255, 255, 255)
 
-WHITE = (255,255,255)
-ORANGE = (242,131,32)
-GREY = (141,138,136)
-BLUE = (70, 139, 172)
-
-class Planet:
-    AU = 149.6e6 * 1000 #distance from sun in meters
-    G = 6.67426e-11
-    SCALE = 15 / AU #approx smaller scale of AU 
-    TIMESTEP = 3600 * 24 * 5 # 5 days
+class Body:
+    AU = 149.6e6 * 1000  # Astronomical Unit in meters
+    SCALE = 50 / (AU / 1496)  # 100 pixels = 100,000 km
+    G = 6.67428e-11  # Gravitational Constant
+    TIMESTEP = 3600 # 1 hour
 
     def __init__(self, x, y, radius, color, mass):
-        self.x = x
+        self.x = x #meters away from earth
         self.y = y
         self.radius = radius
         self.color = color
         self.mass = mass #in kg
 
         self.orbit = []
-        self.sun = False
-        self.distance_to_sun = 0
+        self.earth = False
+        self.distance_to_earth = 0
 
         self.x_vel = 0
         self.y_vel = 0
-
+    
     def draw(self, win):
-        x = self.x * self.SCALE + WIDTH/2
-        y = self.y * self.SCALE + HEIGHT/2
-        if len(self.orbit) > 2:
+        x = self.x * self.SCALE + WIDTH / 2
+        y = self.y * self.SCALE + HEIGHT / 2
 
+        pygame.draw.circle(win, self.color, (int(x), int(y)), self.radius)
+
+        if len(self.orbit) > 2:
             updated_points = []
             for point in self.orbit:
                 x, y = point
                 x = x * self.SCALE + WIDTH / 2
                 y = y * self.SCALE + HEIGHT / 2
-                updated_points.append((x, y))
-            
-            pygame.draw.lines(WIN, self.color, False, updated_points, 1)
-        pygame.draw.circle(WIN, self.color, (x,y), self.radius)
+                updated_points.append((int(x), int(y)))
 
-    def attraction(self, other):
+            pygame.draw.lines(win, self.color, False, updated_points, 2)
+
+    def attraction_position(self, other):
         other_x, other_y = other.x, other.y
         distance_x = other_x - self.x
         distance_y = other_y - self.y
-        distance = math.sqrt(distance_x ** 2 + distance_y ** 2)
+        distance = math.sqrt(distance_x**2 + distance_y**2)
 
-        if other.sun:
-            self.distance_to_sun = distance
+        # Prevent extremely small distances
+        if distance < 1e3:  # Minimum distance threshold (1km)
+            distance = 1e3
 
-        force = self.G * self.mass * other.mass / distance ** 2
+        if self.earth:
+            self.distance_to_earth = distance
+
+        # Gravitational force calculation
+        force = self.G * self.mass * other.mass / distance**2
         theta = math.atan2(distance_y, distance_x)
         force_x = math.cos(theta) * force
         force_y = math.sin(theta) * force
-        return force_x, force_y
-    
-    def update_position(self, planets):
-        total_fx = total_fy = 0
-        for planet in planets:
-            if self == planet:
-                continue
-            fx, fy = self.attraction(planet)
-            total_fx += fx
-            total_fy += fy
 
-        self.x_vel += total_fx / self.mass * self.TIMESTEP
-        self.y_vel += total_fy / self.mass * self.TIMESTEP
-        
-        self.x += self.x_vel * self.TIMESTEP
-        self.y += self.y_vel * self.TIMESTEP
+        self.x_vel += force_x / self.mass * self.TIMESTEP
+        self.y_vel += force_y / self.mass * self.TIMESTEP
+
+        #makes sure earth doesn't move out of the screen
+        if not self.earth:
+            self.x += self.x_vel * self.TIMESTEP
+            self.y += self.y_vel * self.TIMESTEP
+
         self.orbit.append((self.x, self.y))
 
-def main():
+def main(): 
     run = True
     clock = pygame.time.Clock()
 
-    sun = Planet(0, 0, 4, ORANGE, 1.98892 * 10**30) #the sun #replace to make it bigger
-    sun.sun = True
+    earth = Body(0, 0, 16, (100, 149, 237), 5.972 * 10 **24)
+    earth.earth = True
 
-    #the planets:
-    moon = Planet(0.387 * Planet.AU, 0, 1, GREY, 3.3010 * 10**23) #replace w moon's stuff
-    moon.y_vel = -47.87 * 1000
-    
-    earth = Planet(1 * Planet.AU, 0, 2, BLUE, 5.9722 * 10**24) #replace to make it bigger
-    earth.y_vel = 29.78 * 1000
-
-    planets = [sun, earth, moon]
+    moon = Body(0.0026 * Body.AU, 0, 6, (90,90,90), 7.342 * 10 **22)
+    moon.y_vel = 1022  # speed of the moon orbitting around earth
+    bodies = [earth, moon]
 
     while run:
-
         clock.tick(60)
-        pygame.display.update()
+        WIN.fill((0,0,0))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
 
-        for planet in planets:
-            planet.update_position(planets)
-            planet.draw(WIN)
+        for body in bodies:
+            for other_body in bodies:
+                if body != other_body:
+                    body.attraction_position(other_body)
+            body.draw(WIN)
 
+        pygame.display.update()
 
     pygame.quit()
 
