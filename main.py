@@ -98,8 +98,6 @@ def main():
     while run:
 
         clock.tick(60)
-
-        input()
         pygame.display.update()
 
         for event in pygame.event.get():
