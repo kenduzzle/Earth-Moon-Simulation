@@ -14,7 +14,18 @@ class Body:
     G = 6.67428e-11  # Gravitational Constant
     TIMESTEP = 3600 # 1 hour
 
-    def __init__(self, x, y, radius, color, mass):
+    def compute_orbit_path(self):
+        updated_points = []
+        for point in self.orbit:
+                x, y = point
+                x = x * self.SCALE + WIDTH / 2
+                y = y * self.SCALE + HEIGHT / 2
+                updated_points.append((x, y))
+        return updated_points
+
+    def __init__(self, a, e, x, y, radius, color, mass):
+        self.a = a
+        self.e = e
         self.x = x #meters away from earth
         self.y = y
         self.radius = radius
@@ -27,6 +38,26 @@ class Body:
 
         self.x_vel = 0
         self.y_vel = 0
+
+
+    def set_elliptical_orbit(self, central_body):
+        """
+        Sets the planet's position at perihelion and velocity for an elliptical orbit.
+        """
+
+        G = Body.G
+        AU = Body.AU
+        M = central_body.mass
+
+        # Perihelion distance
+        r_p = self.a * AU * (1 - self.e)
+        self.x = r_p
+        self.y = 0
+
+        # Velocity at perihelion (all tangential, along -y axis)
+        v_p = math.sqrt(G * M * (1 + self.e) / (self.a * AU * (1 - self.e)))
+        self.x_vel = 0
+        self.y_vel = -v_p
     
     def draw(self, win):
         x = self.x * self.SCALE + WIDTH / 2
@@ -77,12 +108,16 @@ def main():
     run = True
     clock = pygame.time.Clock()
 
-    earth = Body(0, 0, 16, (100, 149, 237), 5.972 * 10 **24)
+    earth = Body(1, 1, 0, 0, 16, (100, 149, 237), 5.972 * 10 **24)
     earth.earth = True
 
-    moon = Body(0.0026 * Body.AU, 0, 6, (90,90,90), 7.342 * 10 **22)
+    moon = Body(0.0026 * Body.AU, 0.0549, 0.0026 * Body.AU, 0, 6, (90,90,90), 7.342 * 10 **22)
     moon.y_vel = 1022  # speed of the moon orbitting around earth
     bodies = [earth, moon]
+
+    for body in bodies:
+        if not body.earth:
+            body.set_elliptical_orbit(earth)
 
     while run:
         clock.tick(60)
